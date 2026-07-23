@@ -165,3 +165,8 @@ dist
 .env*
 !.env.example
 .wrangler/
+infra/terraform.tfvars
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/*.tfstate.*.backup
