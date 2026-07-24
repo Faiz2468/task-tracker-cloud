@@ -64,11 +64,25 @@ terraform plan
 terraform apply
 ```
 
-### A note on Terraform state
+### Why local state instead of a remote backend
 
-This project intentionally uses **local Terraform state** rather than a remote backend (e.g. R2, S3, Terraform Cloud). Given the project's zero-cost constraint, Cloudflare R2 requires a payment method on file to enable — even though usage itself stays within the free tier — so it was excluded here as a deliberate tradeoff rather than a technical limitation.
+Terraform's official recommendation is to store state remotely (e.g. in an S3 bucket, Cloudflare R2, or Terraform Cloud) rather than on a local machine. This project intentionally uses **local state** instead, and it's worth explaining why — both the constraint and the reasoning.
 
-In a team setting, this project would use a remote backend (R2 or an S3-compatible bucket) for shared state access and locking. As a result, **infrastructure changes (`terraform apply`) are run manually**, while **application code deployments are fully automated** via CD — a common split even in teams that do have remote state, since code ships far more often than infrastructure changes.
+**The constraint:**
+This project was built entirely on free-tier infrastructure with a strict no-cost, no-credit-card requirement. Cloudflare Workers, D1, and the Cloudflare API all support this without needing payment details. Cloudflare R2 (the natural remote-state option within the same ecosystem) is the one exception — enabling it requires a payment method on file, even though usage itself would stay within the free monthly quota. Given the constraint, remote state was deliberately left out rather than compromised on.
+
+**Why remote state matters (and would be the next step):**
+- **State locking** — prevents two people (or two CI runs) from applying changes at the same time and corrupting the state file
+- **Shared access** — lets a team run `terraform apply` from any machine, not just the one that happens to hold the state file
+- **Durability** — state isn't lost if a single laptop is wiped, lost, or unavailable
+- **CI/CD integration** — a fully automated pipeline (including infrastructure changes, not just code deploys) requires state to be accessible from GitHub Actions' ephemeral runners, which don't persist anything between runs
+
+**What this project does instead:**
+Given local state, this project splits deployment into two intentional lanes:
+- **Infrastructure changes** (`terraform apply`) are run manually, from the machine holding the state file — infrequent, deliberate, and reviewed by hand
+- **Application code deployments** (`wrangler deploy`) are fully automated via CI/CD on every merge to `main` — frequent, low-risk, and safe to automate without shared state
+
+**In a funded/production setting**, the immediate next step would be migrating to a remote backend (Cloudflare R2 or an S3-compatible bucket), which would unlock fully automated infrastructure changes as part of the CD pipeline — not just code deploys.
 
 ## CI/CD Pipeline
 
